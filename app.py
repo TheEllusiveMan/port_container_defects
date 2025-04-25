@@ -7,10 +7,10 @@ from models import *
 
 
 # Заголовок приложения
-st.title("Container Damage Classifier")
+st.title("Container Damage Detector")
 
 # Инструкция для пользователя
-st.write("Загрузите изображение, чтобы получить предсказание модели")
+st.write("Загрузите изображение, чтобы найти повреждения")
 
 # Загрузка изображения
 uploaded_files = st.file_uploader("Выберите изображение...", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
@@ -146,6 +146,7 @@ def find_cont_number(image, xyxys):
 def make_report(results_dmg, result_number):
     cont_result = [None, None]
     cont_result[0] = result_number
+    header = ['number', 'damage_type']
 
     for result_list in results_dmg:
         for result in result_list:
@@ -159,9 +160,10 @@ def make_report(results_dmg, result_number):
 
     print('cont_result', cont_result)
 
-    filename = 'Отчет по контейнеру ' + result_number
-    with open(filename, 'w') as f:
+    filename = 'Отчет по контейнеру ' + result_number + '.csv'
+    with open(filename, 'w', newline='') as f:
         writer = csv.writer(f)
+        writer.writerow(header)
         writer.writerow(cont_result)
 
 
@@ -182,7 +184,7 @@ if uploaded_files is not None:
 
     # Кнопка для запуска классификации
     ct = 0
-    if st.button("Классифицировать"):
+    if st.button("Найти повреждения"):
         # cont_result = []
         for image in images:
             im_name = uploaded_files[ct]
