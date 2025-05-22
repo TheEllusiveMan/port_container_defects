@@ -1,3 +1,4 @@
+import os
 import io
 import csv
 import streamlit as st
@@ -12,6 +13,69 @@ st.title("Container Damage Detector")
 # Инструкция для пользователя
 st.write("Загрузите изображение, чтобы найти повреждения")
 
+st.markdown("""
+<style>
+/* Изменение фона */
+.stApp {
+    background: #f5f5f5;
+}
+/* Стиль заголовков */
+h1 {
+    color: #0056b3;
+    font-family: 'Arial';
+}
+
+.stAppHeader {
+    background: #0056b3;
+}
+    
+.st-emotion-cache-uef7qa {
+    color: #000000
+}
+    
+div.stElementContainer:nth-child(2) > div:nth-child(1) > div:nth-child(1) {
+    color: #000000;
+}    
+    
+button.st-emotion-cache-15hul6a:nth-child(1) {
+    background-color: #0056b3;
+}    
+
+.st-emotion-cache-1erivf3 {
+    background-color: #0056b3;
+}
+
+button.st-emotion-cache-15hul6a:nth-child(3) {
+    background-color: #f5f5f5;
+    color: #000000;
+}
+
+.st-emotion-cache-fis6aj {
+    background-color: #0056b3;
+    color: #000000;
+}
+
+.st-emotion-cache-ltfnpr {
+    background-color: #0056b3;
+    color: #000000;
+}
+
+div.stElementContainer:nth-child(7) > div:nth-child(1) {
+    background-color: #0056b3;
+}
+
+div.stElementContainer:nth-child(9) > div:nth-child(1) {
+    background-color: #0056b3;
+}
+
+div.stElementContainer:nth-child(11) > div:nth-child(1) {
+    background-color: #0056b3;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+
 # Загрузка изображения
 uploaded_files = st.file_uploader("Выберите изображение...", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
 
@@ -20,7 +84,10 @@ model_container_number = ModelContainerNumber()
 model_container_damage = ModelContainerDamage()
 
 # cont_result = []
-dmg_translate = {'DAMAGE - HOLE': 'пробоина'}
+dmg_translate = {'Deframe': 'деформация',
+                 'Hole': 'пробоина',
+                 'Rusty': 'ржавчина',
+                 'Dent': 'вмятина'}
 
 
 def container_predict(image_rgb):
@@ -46,10 +113,10 @@ def container_predict(image_rgb):
 
             # Нарисуйте bbox на изображении
             cv2.rectangle(image_rgb, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 3)  # Красный цвет
-            cv2.putText(image_rgb, f'Class: {int(cls)}, Conf: {conf:.2f}', (int(x1), int(y1) - 10),
+            cv2.putText(image_rgb, f'Class: {int(cls)}, Conf: {conf:.2f}', (int(x1), int(y1) + 20),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
-    st.write("Найденный контейнер для:", im_name)
+    # st.write("Найденный контейнер для:", im_name)
     st.image(image_rgb, use_column_width=True)
 
     return xyxys
@@ -88,7 +155,7 @@ def damage_predict(image, xyxys):
                 cv2.putText(cropped_img, f'Class: {class_name}, Conf: {conf:.2f}', (int(x1), int(y1) - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
-    st.write("Найденные повреждения для:", im_name)
+    # st.write("Найденные повреждения для:", im_name)
     st.image(cropped_img, use_column_width=True)
 
     return results_dmg
@@ -137,7 +204,7 @@ def find_cont_number(image, xyxys):
                 cv2.putText(cropped_img, f'Class: {class_name}, Conf: {conf:.2f}', (int(x1), int(y1) - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
 
-    st.write("Найденная маркировка для:", im_name)
+    # st.write("Найденная маркировка для:", im_name)
     st.image(cropped_img, use_column_width=True)
 
     # print('cont_result', cont_result)
@@ -158,10 +225,15 @@ def make_report(results_dmg, result_number):
                 # cont_result.append(dmg_translate[class_name])
                 cont_result[1] = dmg_translate[class_name]
 
-    print('cont_result', cont_result)
+    # print('cont_result', cont_result)
 
-    filename = 'Отчет по контейнеру ' + result_number + '.csv'
-    with open(filename, 'w', newline='') as f:
+    # Полный путь к папке reports (относительно текущего скрипта)
+    reports_dir = os.path.join(os.path.dirname(__file__), 'reports')
+    os.makedirs(reports_dir, exist_ok=True)  # Создаём, если нет
+
+    # filename = 'Отчет по контейнеру ' + result_number + '.csv'
+    filename = os.path.join(reports_dir, 'Отчет по контейнеру ' + result_number + '.csv')
+    with open(filename, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         writer.writerow(header)
         writer.writerow(cont_result)
@@ -202,9 +274,23 @@ if uploaded_files is not None:
             container_xyxys = container_predict(image_rgb)
             # Предсказание повреждений
             result_dmg = damage_predict(image, container_xyxys)
+            # print('result_dmg', result_dmg)
             # Предсказание маркировки
             find_cont_number(image, container_xyxys)
             # Распознование номера
             result_number = 'TCLO 531461 4' # Пока заглушка
 
-            make_report(result_dmg, result_number)
+            # Сохраняем данные в session_state для использования вне этого блока
+            st.session_state.result_dmg = result_dmg
+            st.session_state.result_number = result_number
+
+    if st.button("Сформировать отчет"):
+        # make_report(result_dmg, result_number)
+        make_report(st.session_state.result_dmg, st.session_state.result_number)
+            #
+            # if 'report_generated' not in st.session_state:
+            #     st.session_state.report_generated = False
+            #
+            # if st.button("Сформировать отчет") or st.session_state.report_generated:
+            #     st.session_state.report_generated = True
+            #     make_report(result_dmg, result_number)
