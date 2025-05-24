@@ -7,7 +7,8 @@ from PIL import Image as PILImage
 
 from models import *
 
-st.set_page_config(page_title='HelpTallyman', page_icon=None, layout="centered", initial_sidebar_state="auto", menu_items=None)
+st.set_page_config(page_title='HelpTallyman', page_icon=None, layout="centered", initial_sidebar_state="auto",
+                   menu_items=None)
 st.markdown("""
 <style>
 /* Изменение фона */
@@ -110,6 +111,52 @@ dmg_translate = {'Deframe': 'деформация',
                  'Dent': 'вмятина',
                  'Scratch': 'царапины'}
 
+wall_dict = {'Передняя стенка': 'на передней стенке ',
+             'Задняя стенка': 'на задней стенке ',
+             'Левая стенка': 'на левой стенке ',
+             'Правая стенка': 'на правой стенке '}
+
+
+def get_wall_str(list_result_list_number, side_str):
+    if list_result_list_number == 0:
+        side_str = wall_dict[st.session_state.wall_type_1_img]
+    elif list_result_list_number == 1:
+        side_str = wall_dict[st.session_state.wall_type_2_img]
+    elif list_result_list_number == 2:
+        side_str = wall_dict[st.session_state.wall_type_3_img]
+    return side_str
+
+
+def paint_results_dmg_number(cropped_img, results):
+    # Отобразите результаты
+    for result_list in results:
+        for result in result_list:
+            boxes = result.boxes  # Получите ограничивающие рамки
+            names = result.names
+            for box in boxes:
+                x1, y1, x2, y2 = box.xyxy[0]  # Координаты bbox
+                conf = box.conf[0]  # Уверенность
+                cls = box.cls[0]  # Класс
+                class_name = names[int(cls)]
+
+                # Нарисуйте bbox на изображении
+                cv2.rectangle(cropped_img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 5)  # Красный цвет
+                cv2.putText(cropped_img, f'Class: {class_name}, Conf: {conf:.2f}', (int(x1), int(y1) - 5),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+
+    # st.write("Найденные повреждения для:", im_name)
+    st.image(cropped_img, use_column_width=True)
+
+
+def get_cropped_img_by_xyxys(image_rgb, xyxys):
+    xyxy_1 = xyxys[0]
+    xyxy = xyxy_1[0]
+    x_min, y_min, x_max, y_max = xyxy[0], xyxy[1], xyxy[2], xyxy[3]
+    x_min, y_min, x_max, y_max = int(x_min), int(y_min), int(x_max), int(y_max)
+    cropped_img = image_rgb[y_min:y_max, x_min:x_max]
+
+    return cropped_img
+
 
 def container_predict(image_rgb):
     # предсказываем контейнеры
@@ -128,7 +175,7 @@ def container_predict(image_rgb):
             # Нарисуйте bbox на изображении
             cv2.rectangle(image_rgb, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 3)  # Красный цвет
             cv2.putText(image_rgb, f'Class: {int(cls)}, Conf: {conf:.2f}', (int(x1), int(y1) + 20),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
     # st.write("Найденный контейнер для:", im_name)
     st.image(image_rgb, use_column_width=True)
@@ -141,30 +188,8 @@ def damage_predict(image, xyxys):
 
     image_rgb = np.array(image)
 
-    xyxy_1 = xyxys[0]
-    xyxy = xyxy_1[0]
-    x_min, y_min, x_max, y_max = xyxy[0], xyxy[1], xyxy[2], xyxy[3]
-    x_min, y_min, x_max, y_max = int(x_min), int(y_min), int(x_max), int(y_max)
-    cropped_img = image_rgb[y_min:y_max, x_min:x_max]
-
-    # Отобразите результаты
-    for result_list in results_dmg:
-        for result in result_list:
-            boxes = result.boxes  # Получите ограничивающие рамки
-            names = result.names
-            for box in boxes:
-                x1, y1, x2, y2 = box.xyxy[0]  # Координаты bbox
-                conf = box.conf[0]  # Уверенность
-                cls = box.cls[0]  # Класс
-                class_name = names[int(cls)]
-
-                # Нарисуйте bbox на изображении
-                cv2.rectangle(cropped_img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 5)  # Красный цвет
-                cv2.putText(cropped_img, f'Class: {class_name}, Conf: {conf:.2f}', (int(x1), int(y1) + 20),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-
-    # st.write("Найденные повреждения для:", im_name)
-    st.image(cropped_img, use_column_width=True)
+    cropped_img = get_cropped_img_by_xyxys(image_rgb, xyxys)
+    paint_results_dmg_number(cropped_img, results_dmg)
 
     return results_dmg
 
@@ -183,31 +208,8 @@ def find_cont_number(image, xyxys):
 
     image_rgb = np.array(image)
 
-    # print('xyxys', xyxys)
-    xyxy_1 = xyxys[0]
-    xyxy = xyxy_1[0]
-    x_min, y_min, x_max, y_max = xyxy[0], xyxy[1], xyxy[2], xyxy[3]
-    x_min, y_min, x_max, y_max = int(x_min), int(y_min), int(x_max), int(y_max)
-    cropped_img = image_rgb[y_min:y_max, x_min:x_max]
-
-    # Отобразите результаты
-    for result_list in results_number:
-        for result in result_list:
-            boxes = result.boxes  # Получите ограничивающие рамки
-            names = result.names
-            for box in boxes:
-                x1, y1, x2, y2 = box.xyxy[0]  # Координаты bbox
-                conf = box.conf[0]  # Уверенность
-                cls = box.cls[0]  # Класс
-                class_name = names[int(cls)]
-
-                # Нарисуйте bbox на изображении
-                cv2.rectangle(cropped_img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 5)  # Красный цвет
-                cv2.putText(cropped_img, f'Class: {class_name}, Conf: {conf:.2f}', (int(x1), int(y1) - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
-
-    # st.write("Найденная маркировка для:", im_name)
-    st.image(cropped_img, use_column_width=True)
+    cropped_img = get_cropped_img_by_xyxys(image_rgb, xyxys)
+    paint_results_dmg_number(cropped_img, results_number)
 
     # print('cont_result', cont_result)
 
@@ -220,22 +222,12 @@ def make_report(results_dmg, result_number):
     header = ['number', 'damage_type']
 
     # print('results_dmg', len(results_dmg))
-    list_result_list_number = 0
-    for list_result_list in results_dmg:
+    for list_result_list_number, list_result_list in enumerate(results_dmg):
         side_str = ''
         # print('list_result_list', len(list_result_list))
         # print('list_result_list_number', list_result_list_number)
         for result_list in list_result_list:
-            if list_result_list_number == 0:
-                side_str = 'на левой стенке '
-            elif list_result_list_number == 1:
-                # print('st.session_state.wall_type', st.session_state.wall_type)
-                if st.session_state.wall_type == "Передняя стенка":
-                    side_str = 'на передней стенке '
-                elif st.session_state.wall_type == "Задняя стенка":
-                    side_str = 'на задней стенке '
-            elif list_result_list_number == 2:
-                side_str = 'на правой стенке '
+            side_str = get_wall_str(list_result_list_number, side_str)
 
             for result in result_list:
                 # print('result', result)
@@ -245,11 +237,10 @@ def make_report(results_dmg, result_number):
                     class_name = names[int(box.cls[0])]
                     # print('class_name', class_name)
                     # print('dmg_translate[class_name]', dmg_translate[class_name])
-                    side_str += dmg_translate[class_name]+ ', '
+                    side_str += dmg_translate[class_name] + ', '
                     # cont_result_all += dmg_translate[class_name]+'. '
                     # cont_result_all.append(dmg_translate[class_name])
                     # cont_result[1] = dmg_translate[class_name]
-            list_result_list_number += 1
             cont_result_all += side_str
     # print('cont_result_all', cont_result_all)
     cont_result[1] = cont_result_all
@@ -260,21 +251,23 @@ def make_report(results_dmg, result_number):
     os.makedirs(reports_dir, exist_ok=True)  # Создаём, если нет
 
     # filename = 'Отчет по контейнеру ' + result_number + '.csv'
-    filename = os.path.join(reports_dir, 'Отчет по контейнеру ' + result_number + '.csv')
-    with open(filename, 'w', newline='', encoding='utf-8') as f:
+    filename = os.path.join(reports_dir, 'АОФ ' + result_number + '.csv')
+    with open(filename, 'w', newline='', encoding='utf-8-sig') as f:
         writer = csv.writer(f)
         writer.writerow(header)
         writer.writerow(cont_result)
 
-# Заголовок приложения
-st.title("Container Damage Detector")
 
+# Заголовок приложения
+st.title("Определение повреждений контейнера")
 
 # Инструкция для пользователя
-st.write("Загрузите изображение, чтобы найти повреждения")
+st.write("Загрузите изображения, чтобы найти повреждения")
 
 # Загрузка изображения
-uploaded_files = st.file_uploader("Выберите изображение...", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
+uploaded_files = st.file_uploader("Загрузите изображения и в панели слева выберите ту сторону контейнера,"
+                                  " которая в данный момент видна на каждом изображении", type=["jpg", "jpeg", "png"],
+                                  accept_multiple_files=True)
 
 # names = model.names
 if uploaded_files is not None:
@@ -307,11 +300,10 @@ if uploaded_files is not None:
     if st.button("Найти повреждения"):
         start = time.time()
 
-        ct = 0
         cont_dmg_result = []
         # print('images', images)
-        for image in images:
-            im_name = uploaded_files[ct]
+        for idx, image in enumerate(images, start=1):
+            im_name = uploaded_files[idx-1]
             curr_im_filename = uploaded_files.index(im_name)
             # print('curr_im_filename', curr_im_filename)
             im_name = im_name.name
@@ -320,28 +312,28 @@ if uploaded_files is not None:
             image_bbs = cv2.imread(files_list[curr_im_filename])
             image_rgb = cv2.cvtColor(image_bbs, cv2.COLOR_BGR2RGB)
 
-            # # Предсказание
-            # results = model.predict(source=image_rgb, conf=0.25)
-
-            # st.image(image, caption="Загруженное изображение", use_column_width=True)
-
             # Предсказание контейнера
             container_xyxys = container_predict(image_rgb)
             # Предсказание повреждений
             result_dmg = damage_predict(image, container_xyxys)
             # print('result_dmg', result_dmg)
             # Предсказание маркировки
-            if ct == 1:
+            if idx == 1 and (st.session_state.wall_type_1_img == "Передняя стенка" or
+                             st.session_state.wall_type_1_img == "Задняя стенка"):
+                find_cont_number(image, container_xyxys)
+            elif idx == 2 and (st.session_state.wall_type_2_img == "Передняя стенка" or
+                             st.session_state.wall_type_2_img == "Задняя стенка"):
+                find_cont_number(image, container_xyxys)
+            elif idx == 3 and (st.session_state.wall_type_3_img == "Передняя стенка" or
+                             st.session_state.wall_type_3_img == "Задняя стенка"):
                 find_cont_number(image, container_xyxys)
             # Распознование номера
-            result_number = 'TCLO 531461 4' # Пока заглушка
+            result_number = 'TCLO 531461 4'  # Пока заглушка
 
             # Сохраняем данные в session_state для использования вне этого блока
             cont_dmg_result.append(result_dmg)
             # st.session_state.result_dmg = result_dmg
             st.session_state.result_number = result_number
-
-            ct += 1
 
         # print('cont_dmg_result', cont_dmg_result)
         st.session_state.result_dmg = cont_dmg_result
@@ -352,19 +344,23 @@ if uploaded_files is not None:
     if st.button("Сформировать отчет"):
         # make_report(result_dmg, result_number)
         make_report(st.session_state.result_dmg, st.session_state.result_number)
-            #
-            # if 'report_generated' not in st.session_state:
-            #     st.session_state.report_generated = False
-            #
-            # if st.button("Сформировать отчет") or st.session_state.report_generated:
-            #     st.session_state.report_generated = True
-            #     make_report(result_dmg, result_number)
+
 
 with st.sidebar:
-    st.header("Определение задней или передней стенки")
-    option = st.radio(
-        "Выберите вариант",
-        ["Передняя стенка", "Задняя стенка"],
-        key="wall_type"
+    st.header("Для каждого из трех изображений выберите сторону контейнера. "
+              "Изображения отображены в порядке сверху вниз от первого к последнему.")
+    option_1_img = st.radio(
+        "На первом изображения",
+        ["Задняя стенка", "Передняя стенка", "Левая стенка", "Правая стенка"],
+        key="wall_type_1_img"
     )
-    # st.write(f"Вы выбрали: {option}")
+    option_2_img = st.radio(
+        "На втором изображения",
+        ["Задняя стенка", "Передняя стенка", "Левая стенка", "Правая стенка"],
+        key="wall_type_2_img"
+    )
+    option_3_img = st.radio(
+        "На третьем изображения",
+        ["Задняя стенка", "Передняя стенка", "Левая стенка", "Правая стенка"],
+        key="wall_type_3_img"
+    )
