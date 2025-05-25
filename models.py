@@ -1,14 +1,18 @@
-# %pip install ultralytics
 import cv2
 import ultralytics
 from ultralytics import YOLO
 # ultralytics.checks()
 import numpy as np
 
-
-model_container = YOLO('models/yolov9_container_segment.pt')
-model_container_number = YOLO('models/yolov8_container_number_detect.pt')
-model_container_damage = YOLO('models/best_yolov9m_c4_practica.pt')
+model_container = YOLO('models/best_cont_det_yolo12m_batch16_20epoch.pt')
+# model_container = YOLO('models/best_cont_det_yolo12m.pt')
+# model_container = YOLO('models/best_cont_det_yolo9m_20epochs_dataset_06_05_2025.pt')
+# model_container = YOLO('models/yolov9_container_segment.pt')
+# model_container_number = YOLO('models/yolov8_container_number_detect.pt')
+model_container_number = YOLO('models/cont_numb_yolov9t_1.pt')
+# model_container_damage = YOLO('models/best_yolov9m_c4_practica.pt')
+model_container_damage = YOLO('models/best_cont_dmg_yolo9m.pt')
+# model_container_damage = YOLO('models/best.pt')
 
 
 # классы для моделек, у чела из ультралитикс с ютуба было так
@@ -24,7 +28,7 @@ class ModelContainer():
         return model
 
     def predict(self, frame):
-        results = self.model(frame)
+        results = self.model(frame, conf=0.5)
         return results
 
     def plot_bbboxes(self, results, frame):
@@ -67,7 +71,7 @@ class ModelContainerNumber():
         # в список результатов
         for img in imgs:
             # results = self.model.predict(source=img, conf=0.25)
-            results = self.model(img, conf=0.5)
+            results = self.model(img, conf=0.45)
             results_list.append(results)
 
         return results_list

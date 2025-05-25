@@ -211,7 +211,30 @@ def find_cont_number(image, xyxys):
     cropped_img = get_cropped_img_by_xyxys(image_rgb, xyxys)
     paint_results_dmg_number(cropped_img, results_number)
 
+    return results_number
+
     # print('cont_result', cont_result)
+
+
+def find_cont_number_with_manual_wall(idx, image, container_xyxys):
+    result_number_1 = None
+    if idx == 1 and (st.session_state.wall_type_1_img == "Передняя стенка" or
+                     st.session_state.wall_type_1_img == "Задняя стенка"):
+        result_number_1 = find_cont_number(image, container_xyxys)
+    elif idx == 2 and (st.session_state.wall_type_2_img == "Передняя стенка" or
+                       st.session_state.wall_type_2_img == "Задняя стенка"):
+        result_number_1 = find_cont_number(image, container_xyxys)
+    elif idx == 3 and (st.session_state.wall_type_3_img == "Передняя стенка" or
+                       st.session_state.wall_type_3_img == "Задняя стенка"):
+        result_number_1 = find_cont_number(image, container_xyxys)
+
+    return result_number_1
+
+
+def recogn_number(cont_number_detections):
+    result_number = 'TCLO 531461 4'  # Пока заглушка
+
+    return result_number
 
 
 def make_report(results_dmg, result_number):
@@ -221,30 +244,20 @@ def make_report(results_dmg, result_number):
     cont_result[0] = result_number
     header = ['number', 'damage_type']
 
-    # print('results_dmg', len(results_dmg))
     for list_result_list_number, list_result_list in enumerate(results_dmg):
         side_str = ''
-        # print('list_result_list', len(list_result_list))
-        # print('list_result_list_number', list_result_list_number)
         for result_list in list_result_list:
             side_str = get_wall_str(list_result_list_number, side_str)
-
             for result in result_list:
-                # print('result', result)
                 names = result.names
                 boxes = result.boxes
                 for box in boxes:
                     class_name = names[int(box.cls[0])]
-                    # print('class_name', class_name)
-                    # print('dmg_translate[class_name]', dmg_translate[class_name])
                     side_str += dmg_translate[class_name] + ', '
-                    # cont_result_all += dmg_translate[class_name]+'. '
-                    # cont_result_all.append(dmg_translate[class_name])
-                    # cont_result[1] = dmg_translate[class_name]
+
             cont_result_all += side_str
-    # print('cont_result_all', cont_result_all)
+
     cont_result[1] = cont_result_all
-    # print('cont_result', cont_result)
 
     # Полный путь к папке reports (относительно текущего скрипта)
     reports_dir = os.path.join(os.path.dirname(__file__), 'reports')
@@ -316,26 +329,15 @@ if uploaded_files is not None:
             container_xyxys = container_predict(image_rgb)
             # Предсказание повреждений
             result_dmg = damage_predict(image, container_xyxys)
-            # print('result_dmg', result_dmg)
             # Предсказание маркировки
-            if idx == 1 and (st.session_state.wall_type_1_img == "Передняя стенка" or
-                             st.session_state.wall_type_1_img == "Задняя стенка"):
-                find_cont_number(image, container_xyxys)
-            elif idx == 2 and (st.session_state.wall_type_2_img == "Передняя стенка" or
-                             st.session_state.wall_type_2_img == "Задняя стенка"):
-                find_cont_number(image, container_xyxys)
-            elif idx == 3 and (st.session_state.wall_type_3_img == "Передняя стенка" or
-                             st.session_state.wall_type_3_img == "Задняя стенка"):
-                find_cont_number(image, container_xyxys)
-            # Распознование номера
-            result_number = 'TCLO 531461 4'  # Пока заглушка
+            cont_number_detections = find_cont_number_with_manual_wall(idx, image, container_xyxys)
+            # Распознавание номера
+            result_number = recogn_number(cont_number_detections)
 
             # Сохраняем данные в session_state для использования вне этого блока
             cont_dmg_result.append(result_dmg)
-            # st.session_state.result_dmg = result_dmg
             st.session_state.result_number = result_number
 
-        # print('cont_dmg_result', cont_dmg_result)
         st.session_state.result_dmg = cont_dmg_result
 
         end = time.time() - start
@@ -350,17 +352,17 @@ with st.sidebar:
     st.header("Для каждого из трех изображений выберите сторону контейнера. "
               "Изображения отображены в порядке сверху вниз от первого к последнему.")
     option_1_img = st.radio(
-        "На первом изображения",
+        "На первом изображении",
         ["Передняя стенка", "Задняя стенка", "Левая стенка", "Правая стенка"],
         key="wall_type_1_img"
     )
     option_2_img = st.radio(
-        "На втором изображения",
+        "На втором изображении",
         ["Передняя стенка", "Задняя стенка", "Левая стенка", "Правая стенка"],
         key="wall_type_2_img"
     )
     option_3_img = st.radio(
-        "На третьем изображения",
+        "На третьем изображении",
         ["Передняя стенка", "Задняя стенка", "Левая стенка", "Правая стенка"],
         key="wall_type_3_img"
     )
