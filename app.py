@@ -2,8 +2,10 @@ import os
 import io
 import csv
 import time
+import shutil
 import streamlit as st
 from PIL import Image as PILImage
+from openpyxl import load_workbook
 
 from models import *
 
@@ -237,12 +239,23 @@ def recogn_number(cont_number_detections):
     return result_number
 
 
+def clean_temp_folder(temp_images_dir):
+    """Удаляет все файлы в указанной папке."""
+
+    for filename in os.listdir(temp_images_dir):
+        file_path = os.path.join(temp_images_dir, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print(f"Ошибка при удалении {file_path}: {e}")
+
+
 def make_report(results_dmg, result_number):
-    # cont_result_all = []
     cont_result_all = ''
     cont_result = [None, None]
-    cont_result[0] = result_number
-    header = ['number', 'damage_type']
 
     for list_result_list_number, list_result_list in enumerate(results_dmg):
         side_str = ''
@@ -257,18 +270,25 @@ def make_report(results_dmg, result_number):
 
             cont_result_all += side_str
 
-    cont_result[1] = cont_result_all
-
     # Полный путь к папке reports (относительно текущего скрипта)
     reports_dir = os.path.join(os.path.dirname(__file__), 'reports')
     os.makedirs(reports_dir, exist_ok=True)  # Создаём, если нет
 
-    # filename = 'Отчет по контейнеру ' + result_number + '.csv'
-    filename = os.path.join(reports_dir, 'АОФ ' + result_number + '.csv')
-    with open(filename, 'w', newline='', encoding='utf-8-sig') as f:
-        writer = csv.writer(f)
-        writer.writerow(header)
-        writer.writerow(cont_result)
+    # Загружаем шаблон
+    AOF_template_path = "docs_templates/AOF_template.xlsx"
+    wb = load_workbook(AOF_template_path)
+    sheet = wb.active   # Получаем активный лист (предполагаем, что это TDSheet)
+
+    # Записываем данные в указанные ячейки
+    # R10C2 строка 10, столбец 2 (B10 в Excel)
+    sheet.cell(row=10, column=2, value=result_number)
+    # R13C1 строка 13, столбец 1 (A13 в Excel)
+    sheet.cell(row=13, column=1, value=cont_result_all)
+
+    filename = os.path.join(reports_dir, 'АОФ ' + result_number + '.xlsx')
+
+    # Сохраняем как новый файл
+    wb.save(filename)
 
 
 # Заголовок приложения
@@ -346,6 +366,8 @@ if uploaded_files is not None:
     if st.button("Сформировать отчет"):
         # make_report(result_dmg, result_number)
         make_report(st.session_state.result_dmg, st.session_state.result_number)
+        # Очищаем папку temp_images
+        clean_temp_folder(temp_images_dir)
 
 
 with st.sidebar:
