@@ -99,6 +99,27 @@ div.stElementContainer:nth-child(11) > div:nth-child(1) {
     color: #0056b3;
 }
 
+/* Поле для ввода правильного номера контейнера */
+#text_input_1 {
+    color: #000000;
+    background-color: #f5f5f5;
+}
+
+#text_input_2 {
+    color: #000000;
+    background-color: #f5f5f5;
+}
+
+#text_input_3 {
+    color: #000000;
+    background-color: #f5f5f5;
+}
+
+/* Надпись поля для ввода правильного номера контейнера */
+.stTextInput > label:nth-child(1) > div:nth-child(1) {
+    color: #0056b3;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -239,8 +260,8 @@ def recogn_number(cont_number_detections):
     return result_number
 
 
-def clean_temp_folder(temp_images_dir):
-    """Удаляет все файлы в указанной папке."""
+def clean_temp_folder_text_input(temp_images_dir):
+    """Удаляет все файлы в указанной папке, очищает поле ввода номера контейнера."""
 
     for filename in os.listdir(temp_images_dir):
         file_path = os.path.join(temp_images_dir, filename)
@@ -251,6 +272,9 @@ def clean_temp_folder(temp_images_dir):
                 shutil.rmtree(file_path)
         except Exception as e:
             print(f"Ошибка при удалении {file_path}: {e}")
+
+    # Очищаем поле ввода (через session_state)
+    st.session_state.user_number_input = ""
 
 
 def make_report(results_dmg, result_number):
@@ -300,10 +324,11 @@ st.write("Загрузите изображения, чтобы найти по�
 # Загрузка изображения
 uploaded_files = st.file_uploader("Загрузите изображения и в панели слева выберите ту сторону контейнера,"
                                   " которая в данный момент видна на каждом изображении", type=["jpg", "jpeg", "png"],
-                                  accept_multiple_files=True)
+                                  accept_multiple_files=True, key="files_uploader")
 
 # names = model.names
 if uploaded_files is not None:
+    # print('uploaded_files', uploaded_files)
     images = []
     files_list = []
     temp_images_dir = os.path.join(os.path.dirname(__file__), 'temp_images')
@@ -363,11 +388,26 @@ if uploaded_files is not None:
         end = time.time() - start
         print('time', np.round(end, 2))
 
+
+    # Инициализация session_state (если еще нет)
+    if "user_number_input" not in st.session_state:
+        st.session_state.user_number_input = ""
+
+    # Создаем поле для ввода текста
+    user_number_input = st.text_input("Если номер распознан неверно, введите правильный номер контейнера:",
+                                      value=st.session_state.user_number_input,  # Значение берется из session_state
+                                      key="container_number_input")  # Уникальный ключ для управления полем
+    st.session_state.user_number_input = user_number_input
+
     if st.button("Сформировать отчет"):
-        # make_report(result_dmg, result_number)
-        make_report(st.session_state.result_dmg, st.session_state.result_number)
+        if user_number_input:
+            res_dmg, res_number = st.session_state.result_dmg, st.session_state.user_number_input
+        else:
+            res_dmg, res_number = st.session_state.result_dmg, st.session_state.result_number
+
+        make_report(res_dmg, res_number)
         # Очищаем папку temp_images
-        clean_temp_folder(temp_images_dir)
+        clean_temp_folder_text_input(temp_images_dir)
 
 
 with st.sidebar:
