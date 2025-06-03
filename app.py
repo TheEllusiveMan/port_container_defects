@@ -401,7 +401,7 @@ if uploaded_files is not None:
 
     if st.button("Сформировать отчет"):
         if user_number_input:
-            res_dmg, res_number = st.session_state.result_dmg, st.session_state.user_number_input
+            res_dmg, res_number = st.session_state.result_dmg, st.session_state.user_number_input.upper()
         else:
             res_dmg, res_number = st.session_state.result_dmg, st.session_state.result_number
 
